@@ -9,7 +9,6 @@ using namespace std;
 using namespace Embedded;
 
 #define PAGE_SIZE 4096
-#define DEV_PATH "/dev/nvme0n1"  /* Device path (check with lsblk or sudo nvme list, and modify if needed) */
 
 // Uncomment to enable Task 3
 #define TASK3_ON
@@ -38,8 +37,22 @@ static void write_file(const string &path, const vector<uint8_t> &data) {
 #endif
 
 int main(int argc, char *argv[]) {
+#ifdef TASK3_ON
+    if (argc != 2) {
+        cerr << "Usage: " << argv[0] << " <lab_nvme_device>" << endl;
+        return -1;
+    }
+#else
+    if (argc != 4) {
+        cerr << "Usage: " << argv[0]
+             << " <lab_nvme_device> <input_img> <output_img>" << endl;
+        cerr << "Task 2 writes directly to the specified device. Use only the lab SSD." << endl;
+        return -1;
+    }
+#endif
+
     Proj1 dev;
-    if (dev.Open(DEV_PATH) < 0) {
+    if (dev.Open(argv[1]) < 0) {
         cerr << "Device open failed" << endl;
         return -1;
     }
@@ -62,13 +75,8 @@ int main(int argc, char *argv[]) {
     // ------------------------
     // Task 2: Image Write/Read
     // ------------------------
-    if (argc < 3) {
-        cerr << "Usage: " << argv[0] << " <input_img> <output_img>" << endl;
-        return -1;
-    }
-
-    string input_path = argv[1];
-    string output_path = argv[2];
+    string input_path = argv[2];
+    string output_path = argv[3];
 
     vector<uint8_t> src_data = read_file(input_path);
 
