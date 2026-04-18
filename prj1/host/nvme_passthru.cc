@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <cstring>
 #include <cstdint>
+#include <cerrno>
 #include <stdlib.h>
 #include <vector>
 #include <iostream>
@@ -49,14 +50,16 @@ int Embedded::Proj1::ImageWrite(const std::vector<uint8_t> &buf) {
     while(offset < buf.size()){
         size_t len = min(chunk_size, buf.size() - offset);
         
-        size_t aligned_len = (len + 4095) & ~4095UL;
+        // Pad the final chunk to whole logical blocks.
+        size_t aligned_len = (len + PAGE_SIZE - 1) & ~(static_cast<size_t>(PAGE_SIZE) - 1);
         
         void *tmp = nullptr;
-        posix_memalign(&tmp, PAGE_SIZE, aligned_len);
+        const int allocation_error = posix_memalign(&tmp, PAGE_SIZE, aligned_len);
+        if (allocation_error != 0) return -allocation_error;
         memset(tmp, 0, aligned_len);
         memcpy(tmp, buf.data() + offset, len);
         
-        __u32 nlb = aligned_len / 4096;
+        __u32 nlb = aligned_len / PAGE_SIZE;
         
         int ret = nvme_passthru(NVME_CMD_WRITE,NSID,(__u64)tmp, aligned_len, lba, nlb - 1);
         
@@ -67,12 +70,6 @@ int Embedded::Proj1::ImageWrite(const std::vector<uint8_t> &buf) {
         offset += len;
         lba += nlb;
     }
-    
-    /* ------------------------------------------------------------------
-     * TODO: Implement this function.
-     * 
-     * Return 0 on success, or a negative error code on failure.
-     * ------------------------------------------------------------------ */
 
     return 0;
 }
@@ -91,13 +88,15 @@ int Embedded::Proj1::ImageRead(std::vector<uint8_t> &buf, size_t size) {
     
     while(offset < size){
         size_t len = min(chunk_size, size - offset);
-        size_t aligned_len = (len + 4095) & ~4095UL;
+        // Pad the final chunk to whole logical blocks.
+        size_t aligned_len = (len + PAGE_SIZE - 1) & ~(static_cast<size_t>(PAGE_SIZE) - 1);
         
         void *tmp = nullptr;
-        posix_memalign(&tmp, PAGE_SIZE, aligned_len);
+        const int allocation_error = posix_memalign(&tmp, PAGE_SIZE, aligned_len);
+        if (allocation_error != 0) return -allocation_error;
         memset(tmp, 0 , aligned_len);
         
-        __u32 nlb = aligned_len / 4096;
+        __u32 nlb = aligned_len / PAGE_SIZE;
         
         int ret = nvme_passthru(NVME_CMD_READ, NSID, (__u64)tmp, aligned_len, lba, nlb - 1);
         
@@ -109,40 +108,17 @@ int Embedded::Proj1::ImageRead(std::vector<uint8_t> &buf, size_t size) {
         offset += len;
         lba += nlb;
     }
-    
-    
-    /* ------------------------------------------------------------------
-     * TODO: Implement this function.
-     * 
-     * Return 0 on success, or a negative error code on failure.
-     * ------------------------------------------------------------------ */
 
-    return 0; // placeholder
+    return 0;
 }
 
 int Embedded::Proj1::Hello() {
-    /* ------------------------------------------------------------------
-     * TODO: Implement this function.
-     * 
-     * Return 0 on success, or a negative error code on failure.
-     * ------------------------------------------------------------------ */
 
     return nvme_passthru(NVME_CMD_HELLO, NSID, 0, 0, 0, 0);
 }
 
 int Embedded::Proj1::nvme_passthru(__u8 opcode, __u32 nsid, __u64 addr, __u32 data_len, __u32 cdw10, __u32 cdw12)
 {
-    /* ------------------------------------------------------------------
-     * TODO: Implement this function.
-     * This function should serve as the low-level interface for issuing
-     * passthru NVMe commands. Make sure to include appropriate arguments
-     * (e.g., opcode, namespace ID, command dwords, buffer pointer, length,
-     * and result field) so that higher-level methods (ImageWrite, ImageRead,
-     * Hello) can be implemented using this helper.
-     *
-     * Hint: refer to the Linux nvme_ioctl.h header and the struct nvme_passthru_cmd definition.
-     * - Link: https://elixir.bootlin.com/linux/v5.15/source/include/uapi/linux/nvme_ioctl.h
-     * ------------------------------------------------------------------ */
     struct nvme_passthru_cmd cmd;
     memset(&cmd, 0 ,  sizeof(cmd));
     

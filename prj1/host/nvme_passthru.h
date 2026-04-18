@@ -22,7 +22,7 @@ namespace Embedded {
             int Hello();
         private:
             int fd_;
-            int nvme_passthru(/* TODO: Define the function parameters here */
+            int nvme_passthru(
                 __u8 opcode,
                 __u32 nsid,
                 __u64 addr,
