@@ -1,79 +1,31 @@
-# Project#1 - Task 2 & Task 3. NVMe Passthru-Based Host Interface Tests
-*Sogang University – Embedded Systems Software (CSE4116, Prof. Youngjae Kim)*
+# PRJ1 호스트 테스트
 
----
+수업에서 제공한 호스트 골격에 구현한 NVMe 전송 코드를 정리한 사본입니다. 제출 당시 README와 소스는 첫 `archive(prj1)` 커밋에 남아 있습니다.
 
-## File Descriptions
-- **Makefile**  
-  *Do not modify.*
-- **test.cc**  
-  Test program.  
-  *Do not modify unless absolutely necessary (except for `DEV_PATH`); unjustifiable core logic changes will result in zero credit.*
-  - Task 2: Image write/read test (default).  
-  - Task 3: Custom command test (enabled when `#define TASK3_ON` is active).  
-- **nvme_passthru.h / nvme_passthru.cc**  
-  Implementation of passthru interface operations.  
-  You are free to modify or extend these files as needed.
+## 환경과 빌드
 
----
+Linux의 NVMe ioctl 헤더와 C++ 컴파일러가 필요합니다. 이 폴더에서 `make`로 빌드합니다. 실행 시에는 실제로 연결된 **실습용 SSD**를 명시합니다. Task 2는 지정한 장치에 직접 데이터를 씁니다.
 
-## Task 2 – Image Write/Read
-Write an image file to the device, read it back, and verify that both files are identical.
+## 모드별 인자
 
-### Build
-```bash
-make
+`test.cc`에 `TASK3_ON`이 정의돼 있으면 Task 3 모드입니다.
+
+```text
+./test <lab_nvme_device>
 ```
 
-### Usage
-```bash
-./test input.png output.png
+Task 2를 사용하려면 해당 정의를 해제하고 다시 빌드합니다.
+
+```text
+./test <lab_nvme_device> <input_img> <output_img>
 ```
 
-- `input.png` will be written to the device.  
-- The program immediately reads back from the device into `output.png`.  
-- If the contents of `input.png` and `output.png` are identical, the test passes.
+입력 이미지를 SSD에 쓰고 같은 크기를 읽어 파일로 저장한 뒤 비교합니다. 과제의 입력 이미지 제한은 16 MB 미만입니다. 이미지는 이 저장소에 포함하지 않았습니다.
 
-### Constraints
-- Image size must be **less than 16 MB**.  
-- The program compares the two files byte by byte.
+## 코드 읽기
 
----
+- `test.cc`: 인자를 확인한 다음 장치를 열고 선택한 테스트를 호출합니다.
+- `nvme_passthru.cc`: 논리 블록 크기로 전송 길이를 맞추고, 할당한 버퍼를 해제합니다. 버퍼 할당 실패는 음수 오류 코드로 반환합니다.
+- `nvme_passthru.h`: 호스트 인터페이스입니다.
 
-## Task 3 – Custom NVMe Command: Self-Introduction
-Define a new NVMe command that makes the device print out a short self-introduction via `xil_printf` (to be checked through `tio` (/setup.sh GreedyFTL show)).  
-
-### Example Format
-```
-Name: Gildong Hong
-Student ID: 20241234
-Affiliation: Sogang University Computer Science and Engineering 
-Interests: Embedded Systems and Operating Systems
-Hobbies: Soccer, Movies
-```
-
-### How to Run
-1. Define `#TASK3_ON` in `test.cc` to enable Task 3 mode.  
-2. Rebuild the project:
-   ```bash
-   make clean && make
-   ```
-3. Run the test program (no image files needed for Task 3):  
-   ```bash
-   ./test
-   ```
-4. Open `tio` on the UART port connected to Cosmos+ OpenSSD.  
-5. Check the output printed by the firmware (`xil_printf`).
-
----
-
-## Notes
-- **NSID** is defined in `nvme_passthru.cc`.  
-- **DEV_PATH** is defined in `test.cc`.  
-- Both values may differ depending on your machine.  
-  Use the following command to check:
-  ```bash
-  lsblk
-  ```
-  Update the source accordingly before running the program.
-
+정리된 코드는 장치 호출을 대체한 모형으로 인자 검사, 할당 실패, 분할 전송, 읽기 복사와 버퍼 해제를 확인했습니다. 실제 Linux ioctl ABI와 SSD에서의 동작은 재검증이 필요합니다.

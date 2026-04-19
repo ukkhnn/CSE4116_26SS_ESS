@@ -1,0 +1,2 @@
+# Keep imported source bytes, including original CRLF line endings.
+* -text
