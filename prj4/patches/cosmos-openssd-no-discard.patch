@@ -1,0 +1,72 @@
+diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+index f3071bd11..bca452ce7 100644
+--- a/drivers/nvme/host/core.c
++++ b/drivers/nvme/host/core.c
+@@ -21,6 +21,9 @@
+ #include <linux/pm_qos.h>
+ #include <asm/unaligned.h>
+ 
++// embe-prj4
++#include <linux/string.h>
++
+ #include "nvme.h"
+ #include "fabrics.h"
+ 
+@@ -80,6 +83,13 @@ static bool streams;
+ module_param(streams, bool, 0644);
+ MODULE_PARM_DESC(streams, "turn on support for Streams write directives");
+ 
++// embe-prj4
++static bool nvme_is_cosmos_openssd(const struct nvme_id_ctrl *id)
++{
++	return !strncasecmp(id->mn, "COSMOS+", 7);
++}
++
++
+ /*
+  * nvme_wq - hosts nvme related works that are not reset or delete
+  * nvme_reset_wq - hosts nvme reset works
+@@ -2911,7 +2921,8 @@ static int nvme_init_non_mdts_limits(struct nvme_ctrl *ctrl)
+ 	struct nvme_id_ctrl_nvm *id;
+ 	int ret;
+ 
+-	if (ctrl->oncs & NVME_CTRL_ONCS_DSM) {
++	if (ctrl->oncs & NVME_CTRL_ONCS_DSM && 
++		!(ctrl->quirks & NVME_QUIRK_NO_DISCARD)) {
+ 		ctrl->max_discard_sectors = UINT_MAX;
+ 		ctrl->max_discard_segments = NVME_DSM_MAX_RANGES;
+ 	} else {
+@@ -2931,7 +2942,7 @@ static int nvme_init_non_mdts_limits(struct nvme_ctrl *ctrl)
+ 	else
+ 		ctrl->max_zeroes_sectors = 0;
+ 
+-	if (nvme_ctrl_limited_cns(ctrl))
++	if (nvme_ctrl_limited_cns(ctrl) || (ctrl->quirks & NVME_QUIRK_NO_DISCARD))
+ 		return 0;
+ 
+ 	id = kzalloc(sizeof(*id), GFP_KERNEL);
+@@ -2983,6 +2994,9 @@ static int nvme_init_identify(struct nvme_ctrl *ctrl)
+ 	if (!ctrl->identified) {
+ 		unsigned int i;
+ 
++		// embe-prj4
++		if(nvme_is_cosmos_openssd(id))
++			ctrl->quirks |= NVME_QUIRK_NO_DISCARD;
+ 		/*
+ 		 * Check for quirks.  Quirk can depend on firmware version,
+ 		 * so, in principle, the set of quirks present can change
+diff --git a/drivers/nvme/host/nvme.h b/drivers/nvme/host/nvme.h
+index c8ec0e146..a9f45bed3 100644
+--- a/drivers/nvme/host/nvme.h
++++ b/drivers/nvme/host/nvme.h
+@@ -164,6 +164,10 @@ enum nvme_quirks {
+ 	 * Disables simple suspend/resume path.
+ 	 */
+ 	NVME_QUIRK_FORCE_NO_SIMPLE_SUSPEND	= (1 << 20),
++
++
++	// embe-prj4
++	NVME_QUIRK_NO_DISCARD				= (1 << 21),
+ };
+ 
+ /*
